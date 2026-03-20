@@ -1,0 +1,169 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 160 15% 6%;
+    --foreground: 160 10% 92%;
+
+    --card: 160 20% 10%;
+    --card-foreground: 160 10% 92%;
+
+    --popover: 160 20% 10%;
+    --popover-foreground: 160 10% 92%;
+
+    --primary: 160 85% 40%;
+    --primary-foreground: 160 20% 4%;
+
+    --secondary: 160 15% 14%;
+    --secondary-foreground: 160 10% 80%;
+
+    --muted: 160 15% 12%;
+    --muted-foreground: 160 8% 55%;
+
+    --accent: 38 90% 55%;
+    --accent-foreground: 160 20% 4%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 160 15% 16%;
+    --input: 160 15% 16%;
+    --ring: 160 85% 40%;
+
+    --radius: 0.75rem;
+
+    --gold: 38 90% 55%;
+    --gold-light: 38 85% 70%;
+    --gold-dark: 38 95% 40%;
+    --emerald: 160 85% 40%;
+    --emerald-light: 160 70% 55%;
+    --emerald-dark: 160 90% 28%;
+    --navy: 160 20% 8%;
+    --navy-light: 160 15% 16%;
+    --navy-deep: 160 25% 4%;
+    --coral: 12 80% 60%;
+    --violet: 260 55% 55%;
+
+    --sidebar-background: 160 22% 8%;
+    --sidebar-foreground: 160 10% 85%;
+    --sidebar-primary: 160 85% 40%;
+    --sidebar-primary-foreground: 160 20% 4%;
+    --sidebar-accent: 160 18% 13%;
+    --sidebar-accent-foreground: 160 10% 85%;
+    --sidebar-border: 160 15% 14%;
+    --sidebar-ring: 160 85% 40%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+    background-image: url('/images/hero-bg.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: hsl(160 15% 6% / 0.88);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  body > #root {
+    position: relative;
+    z-index: 1;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
+}
+
+@layer utilities {
+  .text-gradient-gold {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(var(--gold)) 0%, hsl(var(--gold-light)) 50%, hsl(var(--gold)) 100%);
+  }
+
+  .text-gradient-emerald {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(var(--emerald)) 0%, hsl(var(--emerald-light)) 100%);
+  }
+
+  .bg-gradient-hero {
+    background: linear-gradient(135deg, hsl(var(--navy-deep)) 0%, hsl(var(--navy)) 40%, hsl(var(--navy-light)) 100%);
+  }
+
+  .bg-gradient-gold {
+    background: linear-gradient(135deg, hsl(var(--gold-dark)) 0%, hsl(var(--gold)) 50%, hsl(var(--gold-light)) 100%);
+  }
+
+  .bg-gradient-emerald {
+    background: linear-gradient(135deg, hsl(var(--emerald-dark)) 0%, hsl(var(--emerald)) 50%, hsl(var(--emerald-light)) 100%);
+  }
+
+  .bg-gradient-card {
+    background: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--muted)) 100%);
+  }
+
+  .shadow-gold {
+    box-shadow: 0 4px 20px -4px hsl(var(--gold) / 0.3);
+  }
+
+  .shadow-emerald {
+    box-shadow: 0 4px 20px -4px hsl(var(--emerald) / 0.3);
+  }
+
+  .shadow-card {
+    box-shadow: 0 1px 3px hsl(0 0% 0% / 0.2), 0 6px 24px hsl(0 0% 0% / 0.15);
+  }
+
+  .shadow-card-hover {
+    box-shadow: 0 2px 8px hsl(0 0% 0% / 0.25), 0 12px 40px hsl(0 0% 0% / 0.2);
+  }
+
+  .border-gradient-gold {
+    border-image: linear-gradient(135deg, hsl(var(--gold)), hsl(var(--gold-light))) 1;
+  }
+
+  .glass {
+    backdrop-filter: blur(16px) saturate(180%);
+    background: hsl(var(--card) / 0.85);
+  }
+
+  /* Force white text on all recharts tooltips */
+  .recharts-tooltip-wrapper .recharts-default-tooltip {
+    background: hsl(var(--card)) !important;
+    border-color: hsl(var(--border)) !important;
+    border-radius: 8px !important;
+  }
+
+  .recharts-tooltip-wrapper .recharts-default-tooltip .recharts-tooltip-label {
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .recharts-tooltip-wrapper .recharts-default-tooltip .recharts-tooltip-item {
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .recharts-text {
+    fill: hsl(var(--muted-foreground)) !important;
+  }
+
+  .recharts-cartesian-axis-tick-value {
+    fill: hsl(var(--muted-foreground)) !important;
+  }
+}
