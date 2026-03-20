@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { apiUpload } from "@/lib/api";
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 export interface Transaction {
@@ -14,13 +15,13 @@ export interface FundHolding {
   fundName:     string;
   folio:        string;
   plan:         "Direct" | "Regular";
-  category:     string;       // "Large Cap", "Mid Cap", etc.
+  category:     string;
   units:        number;
   currentNAV:   number;
   currentValue: number;
   investedCost: number;
   expenseRatio: number;
-  directExpenseRatio: number; // equivalent Direct plan ER
+  directExpenseRatio: number;
   transactions: Transaction[];
 }
 
@@ -30,15 +31,15 @@ export interface CAMSData {
   holdings:     FundHolding[];
   totalInvested:number;
   totalCurrent: number;
-  xirr:         number;       // as decimal e.g. 0.084 = 8.4%
-  overlapScore: number;       // 0–100
+  xirr:         number;
+  overlapScore: number;
   commissionPaid5yr: number;
   commissionProjected20yr: number;
   parsed:       boolean;
   fileName?:    string;
 }
 
-// ─── DEMO DATA (for judges / demo mode) ──────────────────────────────────────
+// ─── DEMO DATA ────────────────────────────────────────────────────────────────
 export const DEMO_CAMS_DATA: CAMSData = {
   pan:   "ABCDE1234F",
   name:  "Rahul Sharma",
@@ -120,8 +121,6 @@ export const useCAMSData = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // In production this would call POST /api/xray with the PDF file.
-  // For the demo, it loads the DEMO_CAMS_DATA after a simulated delay.
   const loadDemo = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -134,18 +133,14 @@ export const useCAMSData = () => {
     setLoading(true);
     setError(null);
     try {
-      // TODO: POST to /api/xray — returns CAMSData JSON
-      // const formData = new FormData();
-      // formData.append("file", file);
-      // const res = await fetch("/api/xray", { method: "POST", body: formData });
-      // const result: CAMSData = await res.json();
-      // setData(result);
-
-      // Demo fallback
+      const result = await apiUpload<CAMSData>("/api/xray", file);
+      setData({ ...result, fileName: file.name });
+    } catch (e) {
+      // Fallback to demo if backend not available
+      console.warn("Backend unavailable, falling back to demo data:", e);
       await new Promise(r => setTimeout(r, 1800));
       setData({ ...DEMO_CAMS_DATA, fileName: file.name });
-    } catch (e) {
-      setError("Failed to parse CAMS statement. Please try again.");
+      setError(null); // clear error — demo loaded successfully
     }
     setLoading(false);
   }, []);

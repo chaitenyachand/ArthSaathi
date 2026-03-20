@@ -1,102 +1,55 @@
-import { useState } from "react";
-import Layout from "./components/Layout";
-import Dashboard from "./modules/Dashboard";
-import MoneyHealthScore from "./modules/MoneyHealthScore";
-import MFPortfolioXRay from "./modules/MFPortfolioXRay";
-import TaxWizard from "./modules/TaxWizard";
-import FirePlanner from "./modules/FirePlanner";
-import LifeEventAdvisor from "./modules/LifeEventAdvisor";
-import CouplesPlanner from "./modules/CouplesPlanner";
-import BehavioralBiasFingerprint from "./modules/BehavioralBiasFingerprint";
-import WhatsAppTipAnalyzer from "./modules/WhatsAppTipAnalyzer";
-import ProcrastinationClock from "./modules/ProcrastinationClock";
-import TheMirror from "./modules/TheMirror";
-import SalaryWealthTranslator from "./modules/SalaryWealthTranslator";
-import LandingPage from "./pages/LandingPage";
-import type { ModuleId, ScoreMap } from "./utils/constants";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { CAMSProvider } from "@/context/CAMSContext";
+import Index from "./pages/Index.tsx";
+import NotFound from "./pages/NotFound.tsx";
+import Dashboard from "./pages/Dashboard.tsx";
+import PortfolioXRay from "./pages/PortfolioXRay.tsx";
+import TaxWizard from "./pages/TaxWizard.tsx";
+import FirePlanner from "./pages/FirePlanner.tsx";
+import HealthScore from "./pages/HealthScore.tsx";
+import LifeEvent from "./pages/LifeEvent.tsx";
+import CouplesPlanner from "./pages/CouplesPlanner.tsx";
+import BadAdvice from "./pages/BadAdvice.tsx";
+import BiasFingerprint from "./pages/BiasFingerprint.tsx";
+import TipAnalyzer from "./pages/TipAnalyzer.tsx";
+import ProcrastinationClock from "./pages/ProcrastinationClock.tsx";
+import TheMirror from "./pages/TheMirror.tsx";
+import SalaryTranslator from "./pages/SalaryTranslator.tsx";
 
-type View = "landing" | "app";
+const queryClient = new QueryClient();
 
-const BadAdviceDetector = () => (
-  <div style={{ color: "#F0F0F0", padding: 32 }}>
-    <h2>Cost of Bad Advice</h2>
-    <p>
-      This module is embedded inside MF Portfolio X-Ray. Upload your CAMS
-      statement there to see exactly how much your distributor earned.
-    </p>
-  </div>
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <CAMSProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/portfolio-xray" element={<PortfolioXRay />} />
+            <Route path="/tax-wizard" element={<TaxWizard />} />
+            <Route path="/fire-planner" element={<FirePlanner />} />
+            <Route path="/health-score" element={<HealthScore />} />
+            <Route path="/life-event" element={<LifeEvent />} />
+            <Route path="/couples-planner" element={<CouplesPlanner />} />
+            <Route path="/bad-advice" element={<BadAdvice />} />
+            <Route path="/bias-fingerprint" element={<BiasFingerprint />} />
+            <Route path="/tip-analyzer" element={<TipAnalyzer />} />
+            <Route path="/procrastination-clock" element={<ProcrastinationClock />} />
+            <Route path="/the-mirror" element={<TheMirror />} />
+            <Route path="/salary-translator" element={<SalaryTranslator />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </CAMSProvider>
+    </TooltipProvider>
+  </QueryClientProvider>
 );
 
-export default function App() {
-  const [view, setView] = useState<View>("landing");
-  const [activeModule, setActiveModule] = useState<ModuleId | "dashboard">("dashboard");
-  const [scores, setScores] = useState<ScoreMap | undefined>(undefined);
-
-  const healthScore =
-    scores
-      ? Math.round(
-          Object.values(scores).reduce((a, b) => a + b, 0) /
-            Object.values(scores).length
-        )
-      : undefined;
-
-  if (view === "landing") {
-    return <LandingPage onEnter={() => setView("app")} />;
-  }
-
-  const renderModule = () => {
-    switch (activeModule) {
-      case "dashboard":
-        return (
-          <Dashboard
-            onNavigate={setActiveModule}
-            healthScore={healthScore}
-            scores={scores}
-          />
-        );
-      case "score":
-        return (
-          <MoneyHealthScore 
-            onScoreReady={setScores}
-            onNavigate={setActiveModule}
-          />
-        );
-    
-      case "xray":
-        return <MFPortfolioXRay />;
-      case "tax":
-        return <TaxWizard />;
-      case "fire":
-        return <FirePlanner />;
-      case "life":
-        return <LifeEventAdvisor />;
-      case "couples":
-        return <CouplesPlanner />;
-      case "badadvice":
-        return <BadAdviceDetector />;
-      case "bias":
-        return <BehavioralBiasFingerprint />;
-      case "tip":
-        return <WhatsAppTipAnalyzer />;
-      case "clock":
-        return <ProcrastinationClock />;
-      case "mirror":
-        return <TheMirror />;
-      case "translator":
-        return <SalaryWealthTranslator />;
-      default:
-        return <Dashboard onNavigate={setActiveModule} />;
-    }
-  };
-
-  return (
-    <Layout
-      activeModule={activeModule}
-      onNavigate={setActiveModule}
-      onBackHome={() => setView("landing")}
-      healthScore={healthScore}
-    >
-      {renderModule()}
-    </Layout>
-  );
-}
+export default App;
