@@ -83,3 +83,24 @@ def test_procrastination_cost():
     # Cost per day = ~ 723
     # Cost per second = ~ 0.0083
     assert isclose(cost_ps, 0.0083, abs_tol=0.001)
+
+def test_xirr_engine_with_dataframe():
+    from services.xirr_engine import XIRREngine
+    import pandas as pd
+    from datetime import date, timedelta
+    
+    today = date.today()
+    one_year_ago = today - timedelta(days=365)
+    two_years_ago = today - timedelta(days=730)
+    
+    data = [
+        {"date": two_years_ago, "fund_name": "Fund A", "transaction_type": "purchase", "amount": 10000},
+        {"date": one_year_ago, "fund_name": "Fund A", "transaction_type": "purchase", "amount": 10000},
+    ]
+    df = pd.DataFrame(data)
+    
+    # If we invest 10k exactly 2 years ago, 10k exactly 1 year ago, and current value is 25000 today
+    # Roots for (1+r)^2 + (1+r) - 2.5 = 0 yield r ~ 15.83%
+    xirr = XIRREngine.calculate_xirr(df, current_value=25000)
+    
+    assert isclose(xirr, 15.83, abs_tol=0.1)

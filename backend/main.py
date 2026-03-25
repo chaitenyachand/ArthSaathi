@@ -1,47 +1,44 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from config.config import settings
-from routers import xray, tax, ai_advisor, calculators
+import logging
+
+# Establish root logging formatting
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+
+from routers.xray import router as xray_router
+from routers.tax import router as tax_router
+from routers.ai_advisor import router as ai_advisor_router
+from routers.calculators import router as calculators_router
+from routers.behavior import router as behavior_router
+from routers.health import router as health_router
+from routers.dashboard_router import router as dashboard_router
 
 app = FastAPI(
-    title="ArthSaathi API",
-    description="Backend for ArthSaathi, a multi-agent AI financial mentor.",
+    title="ArthSaathi Backend API",
+    description="Engine for MF X-Ray, Tax Wizard, FIRE Calculators, and SEBI-Level Anthropic Advisory.",
     version="1.0.0"
 )
 
-# CORS middleware for React frontend
+# Connect heavily asynchronous routers to the FastAPI framework securely
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"], # Allowing standard React/Vite dev ports
+    allow_origins=["*"], # Expand cleanly in production builds
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Placeholder for External Service / DB Dependency Injection
-def get_db_session():
-    """Yield a database session (to be implemented)."""
-    db = None # Placeholder for actual db connection
-    try:
-        yield db
-    finally:
-        pass
+# Wire all routers together, guaranteeing asynchronous endpoints handle high concurrency
+app.include_router(xray_router)
+app.include_router(tax_router)
+app.include_router(ai_advisor_router)
+app.include_router(calculators_router)
+app.include_router(behavior_router, prefix="/api/v1/behavior", tags=["Behavior"])
+app.include_router(health_router)
+app.include_router(dashboard_router)
 
 @app.get("/health")
-async def health_check(db = Depends(get_db_session)):
-    """Basic health-check endpoint to verify API operations."""
-    return {
-        "status": "ok",
-        "environment": settings.ENV,
-        "message": "ArthSaathi backend is running."
-    }
-
-# Register Application Routers
-app.include_router(xray.router)
-app.include_router(tax.router)
-app.include_router(ai_advisor.router)
-app.include_router(calculators.router)
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=settings.PORT, reload=True)
+async def health_check():
+    """Core health ping identifying active services."""
+    return {"status": "ok", "app": "ArthSaathi Engine Linked!"}

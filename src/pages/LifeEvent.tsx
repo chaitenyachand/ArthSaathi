@@ -1,147 +1,166 @@
 import { useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { motion } from "framer-motion";
-import { CalendarDays, IndianRupee, ArrowRight, Check } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Flame, Plus, IndianRupee, ArrowRight, TrendingUp, X, MapPin, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { api } from "@/lib/api";
 
-const events = [
-  { id: "bonus", label: "Annual Bonus Received", icon: "bonus" },
-  { id: "inheritance", label: "Inheritance or Windfall", icon: "windfall" },
-  { id: "married", label: "Getting Married", icon: "married" },
-  { id: "baby", label: "New Baby", icon: "baby" },
-  { id: "home", label: "Buying a Home", icon: "home" },
-  { id: "jobchange", label: "Job Change or Loss", icon: "job" },
-];
+interface LifeEvent {
+  name: string;
+  cost: number;
+  years_from_now: number;
+}
 
-const bonusResult = {
-  bonusAmount: 500000,
-  actions: [
-    { priority: 1, action: "Clear personal loan", amount: 150000, reason: "Risk-free 14% return. Highest-cost debt eliminated first.", tag: "Debt" },
-    { priority: 2, action: "Top up emergency fund", amount: 180000, reason: "Bring emergency savings from 1.5 months to 3 months of expenses.", tag: "Safety" },
-    { priority: 3, action: "Invest in ELSS", amount: 170000, reason: "Fills remaining 80C gap. Tax saving of INR 51,000 at 30% bracket.", tag: "Tax + Growth" },
-  ],
-  taxSaving: 51000,
-};
+const LifeEventComponent = () => {
+  const [events, setEvents] = useState<LifeEvent[]>([]);
+  const [name, setName] = useState("");
+  const [cost, setCost] = useState("");
+  const [years, setYears] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<any>(null);
 
-const LifeEvent = () => {
-  const [selected, setSelected] = useState<string | null>(null);
-  const [showResult, setShowResult] = useState(false);
+  const addEvent = () => {
+    if (!name || !cost || !years) return;
+    setEvents([...events, { name, cost: parseFloat(cost), years_from_now: parseFloat(years) }]);
+    setName(""); setCost(""); setYears("");
+  };
+
+  const removeEvent = (index: number) => {
+    const arr = [...events];
+    arr.splice(index, 1);
+    setEvents(arr);
+  };
+
+  const handleSimulate = async () => {
+    setLoading(true);
+    try {
+      const data = await api.simulateFirePath({
+        current_age: 30, // hardcoded baseline to show relative anomalies
+        target_age: 50,
+        current_corpus: 1000000,
+        target_corpus: 30000000,
+        expected_cagr: 0.12,
+        inflation_rate: 0.06,
+        life_events: events
+      });
+      // Convert monthly to yearly for safe smooth rendering
+      const compressed = data.roadmap.filter((r: any) => r.month % 12 === 0);
+      data.roadmap = compressed;
+      setResult(data);
+    } catch (e) {
+      console.error(e);
+    }
+    setLoading(false);
+  };
+
+  const formatRupee = (val: number) => {
+    if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)} Cr`;
+    if (val >= 100000) return `₹${(val / 100000).toFixed(2)} L`;
+    return `₹${val.toLocaleString('en-IN')}`;
+  };
 
   return (
     <DashboardLayout>
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center">
-            <CalendarDays className="w-5 h-5 text-gold" />
+          <div className="w-10 h-10 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+            <Flame className="w-5 h-5 text-orange-500" />
           </div>
           <div>
-            <h1 className="text-2xl font-heading font-bold text-foreground">Life Event Advisor</h1>
-            <p className="text-sm text-muted-foreground">The right financial advice at the right moment</p>
+            <h1 className="text-2xl font-heading font-bold text-foreground">Life Event Simulator</h1>
+            <p className="text-sm text-muted-foreground">Inject massive cash flow shocks into your FIRE trajectory.</p>
           </div>
         </div>
       </motion.div>
 
-      {!showResult ? (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 space-y-6">
-          <h3 className="text-base font-heading font-semibold text-foreground">Select your life event</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {events.map((e) => (
-              <button
-                key={e.id}
-                onClick={() => setSelected(e.id)}
-                className={`text-left p-5 rounded-xl border transition-all duration-200 ${
-                  selected === e.id
-                    ? "border-gold bg-gold/5 shadow-gold"
-                    : "border-border bg-card hover:border-gold/30"
-                }`}
-              >
-                <CalendarDays className={`w-5 h-5 mb-3 ${selected === e.id ? "text-gold" : "text-muted-foreground"}`} />
-                <p className="text-sm font-heading font-semibold text-foreground">{e.label}</p>
-              </button>
-            ))}
-          </div>
-
-          {selected === "bonus" && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-1.5 block text-foreground">Bonus Amount</label>
-                <input
-                  type="text"
-                  defaultValue="500000"
-                  className="w-full max-w-xs rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-ring outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-1.5 block text-foreground">Existing Personal Loan (at 14%)</label>
-                <input
-                  type="text"
-                  defaultValue="450000"
-                  className="w-full max-w-xs rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-ring outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-1.5 block text-foreground">Emergency Fund Covers</label>
-                <input
-                  type="text"
-                  defaultValue="1.5 months"
-                  className="w-full max-w-xs rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-ring outline-none"
-                />
-              </div>
-              <Button variant="hero" onClick={() => setShowResult(true)}>
-                Get Action Plan <ArrowRight className="ml-2 w-4 h-4" />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6">
+        {/* Left column: Event Builder */}
+        <div className="lg:col-span-4 space-y-4">
+          <div className="p-6 rounded-2xl bg-card border border-border shadow-card">
+            <h3 className="text-sm font-semibold text-foreground mb-4">Add Liquidity Shock</h3>
+            <div className="space-y-3">
+              <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Event Name (e.g. Wedding)" className="w-full text-sm rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:ring-1 focus:ring-orange-500 outline-none" />
+              <input type="number" value={cost} onChange={e => setCost(e.target.value)} placeholder="Total Cost (₹)" className="w-full text-sm rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:ring-1 focus:ring-orange-500 outline-none" />
+              <input type="number" value={years} onChange={e => setYears(e.target.value)} placeholder="Years from now" className="w-full text-sm rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:ring-1 focus:ring-orange-500 outline-none" />
+              <Button onClick={addEvent} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold">
+                <Plus className="w-4 h-4 mr-2" /> Add Shock Event
               </Button>
-            </motion.div>
-          )}
-
-          {selected && selected !== "bonus" && (
-            <div className="p-4 rounded-xl bg-muted border border-border">
-              <p className="text-sm text-muted-foreground">Select "Annual Bonus Received" for the full interactive demo. Other events follow the same pattern.</p>
             </div>
-          )}
-        </motion.div>
-      ) : (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-6">
-          <div className="rounded-xl bg-card border border-gold/20 p-6 shadow-card">
-            <h3 className="text-base font-heading font-semibold mb-2 text-foreground">Ranked Action Plan for INR {bonusResult.bonusAmount.toLocaleString()} Bonus</h3>
-            <p className="text-sm text-muted-foreground mb-6">Actions ordered by financial impact — highest priority first.</p>
-            <div className="space-y-4">
-              {bonusResult.actions.map((a) => (
-                <div key={a.priority} className="flex gap-4 p-4 rounded-lg bg-muted/50 border border-border">
-                  <div className="w-8 h-8 rounded-full bg-gold/10 text-gold flex items-center justify-center text-sm font-heading font-bold shrink-0">
-                    {a.priority}
+          </div>
+
+          <div className="space-y-3">
+            <AnimatePresence>
+              {events.map((ev, i) => (
+                <motion.div key={i} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="flex justify-between items-center bg-orange-500/10 border border-orange-500/20 rounded-xl p-4">
+                  <div>
+                    <p className="font-semibold text-sm text-foreground">{ev.name}</p>
+                    <p className="text-xs text-muted-foreground">-{formatRupee(ev.cost)} in Year {ev.years_from_now}</p>
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-heading font-semibold text-sm text-foreground">{a.action}</span>
-                      <span className="font-heading font-bold text-sm flex items-center text-gold">
-                        <IndianRupee className="w-3 h-3" />{a.amount.toLocaleString()}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{a.reason}</p>
-                    <span className="inline-block mt-2 text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-gold/10 text-gold">{a.tag}</span>
-                  </div>
-                </div>
+                  <button onClick={() => removeEvent(i)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-orange-500/20 text-orange-500 transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                </motion.div>
               ))}
-            </div>
+            </AnimatePresence>
           </div>
 
-          <div className="rounded-xl bg-emerald/5 border border-emerald/20 p-5">
-            <div className="flex items-center gap-2 mb-2">
-              <Check className="w-5 h-5 text-emerald" />
-              <span className="font-heading font-semibold text-sm text-foreground">Tax Benefit</span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              The INR 1,70,000 ELSS investment saves INR {bonusResult.taxSaving.toLocaleString()} in tax this year at the 30% bracket.
-            </p>
-          </div>
-
-          <Button variant="outline" onClick={() => { setShowResult(false); setSelected(null); }}>
-            Try Another Event
+          <Button onClick={handleSimulate} disabled={loading || events.length === 0} className="w-full py-6 mt-4 bg-foreground hover:bg-foreground/90 text-background font-bold text-lg rounded-xl shadow-xl">
+             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Deploy Simulation Matrix"}
           </Button>
-        </motion.div>
-      )}
+        </div>
+
+        {/* Right column: Results & Chart */}
+        <div className="lg:col-span-8">
+          {result ? (
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="p-6 rounded-2xl bg-card border border-border">
+                  <p className="text-sm font-semibold text-muted-foreground mb-1 tracking-wider uppercase">Baseline Target</p>
+                  <p className="text-3xl font-heading font-black text-foreground">{formatRupee(30000000)}</p>
+                </div>
+                <div className="p-6 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-center flex flex-col justify-center items-center">
+                  <p className="text-sm font-semibold text-orange-500 mb-1 tracking-wider uppercase">New Adjusted SIP Required</p>
+                  <p className="text-4xl font-heading font-black text-orange-500">{formatRupee(result.summary.required_monthly_sip)}/mo</p>
+                </div>
+              </div>
+
+              <div className="p-6 rounded-2xl bg-card border border-border shadow-card h-[450px]">
+                <h3 className="text-sm font-heading font-semibold text-foreground mb-4">Trajectory Deficit Map</h3>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={result.roadmap} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorProjected" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="age" stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => `Age ${Math.floor(v)}`} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => `₹${(v/10000000).toFixed(1)}Cr`} width={60} />
+                    <Tooltip 
+                      formatter={(value: number) => formatRupee(value)}
+                      labelFormatter={(label) => `Age ${label}`}
+                      contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
+                    />
+                    <Area type="monotone" dataKey="projected_corpus" stroke="#f97316" strokeWidth={3} fillOpacity={1} fill="url(#colorProjected)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </motion.div>
+          ) : (
+             <div className="h-full min-h-[500px] flex flex-col items-center justify-center p-12 text-center border border-dashed border-border rounded-2xl bg-muted/30">
+                <MapPin className="w-12 h-12 text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-heading font-bold text-foreground mb-2">Simulation Sandbox Empty</h3>
+                <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                  Add major future expenses like a Wedding, House Downpayment, or Sabbatical. We will recalculate the exact required systemic SIP jump to survive the anomaly.
+                </p>
+             </div>
+          )}
+        </div>
+      </div>
     </DashboardLayout>
   );
 };
 
-export default LifeEvent;
+export default LifeEventComponent;
