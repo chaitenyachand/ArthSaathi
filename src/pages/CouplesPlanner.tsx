@@ -1,143 +1,189 @@
 import { useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { motion } from "framer-motion";
-import { Users, ArrowRight, IndianRupee, Check } from "lucide-react";
+import { Users, IndianRupee, ArrowRight, HeartPulse, PieChart, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const optimisations = [
-  {
-    title: "HRA Optimisation",
-    saving: 58000,
-    detail: "Split rent declaration as 60% Partner A, 40% Partner B based on salary brackets. Combined HRA saving: INR 58,000 per year.",
-  },
-  {
-    title: "NPS Employer Matching",
-    saving: 60000,
-    detail: "Partner A's employer matches up to INR 60,000 in NPS. This is free money. Maximise this before any other investment.",
-  },
-  {
-    title: "LTCG Tax Splitting",
-    saving: 20000,
-    detail: "By holding equity funds across both names, you get INR 2L LTCG exemption per year instead of INR 1L. Estimated annual savings.",
-  },
-  {
-    title: "Insurance Joint Review",
-    saving: 18000,
-    detail: "Switch two individual health policies to a family floater. Same coverage, 28% lower premium.",
-  },
-];
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from "recharts";
+import { api } from "@/lib/api";
 
 const CouplesPlanner = () => {
-  const [started, setStarted] = useState(false);
+  const [partnerA, setPartnerA] = useState({ name: "Partner A", corpus: "500000", sip: "30000", cagr: "0.12" });
+  const [partnerB, setPartnerB] = useState({ name: "Partner B", corpus: "200000", sip: "15000", cagr: "0.10" });
+  const [target, setTarget] = useState("50000000"); // 5 Cr default target
+  
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<any>(null);
+
+  const formatRupee = (value: number) => {
+    if (value >= 10000000) return `₹${(value / 10000000).toFixed(2)} Cr`;
+    if (value >= 100000) return `₹${(value / 100000).toFixed(2)} L`;
+    return `₹${value.toLocaleString('en-IN')}`;
+  };
+
+  const handleCalculate = async () => {
+    if (!partnerA.corpus || !partnerB.corpus || !target) return;
+    
+    setLoading(true);
+    try {
+      const payload = {
+        person_a: {
+          name: partnerA.name,
+          current_corpus: parseFloat(partnerA.corpus),
+          sip: parseFloat(partnerA.sip),
+          expected_cagr: parseFloat(partnerA.cagr)
+        },
+        person_b: {
+          name: partnerB.name,
+          current_corpus: parseFloat(partnerB.corpus),
+          sip: parseFloat(partnerB.sip),
+          expected_cagr: parseFloat(partnerB.cagr)
+        },
+        joint_target_corpus: parseFloat(target),
+        joint_monthly_expenses: 100000 // Mock variable placeholder
+      };
+      const data = await api.simulateCouplesFire(payload);
+      // We only need the roadmap up to FIRE date + 5 years to keep the chart clean
+      const fireYear = Math.ceil(data.years_to_fire);
+      data.roadmap = data.roadmap.slice(0, Math.min(fireYear + 5, 40));
+      setResult(data);
+    } catch (e) {
+      console.error(e);
+    }
+    setLoading(false);
+  };
 
   return (
     <DashboardLayout>
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-lg bg-emerald/10 border border-emerald/20 flex items-center justify-center">
-            <Users className="w-5 h-5 text-emerald" />
+          <div className="w-10 h-10 rounded-lg bg-pink-500/10 border border-pink-500/20 flex items-center justify-center">
+            <Users className="w-5 h-5 text-pink-500" />
           </div>
           <div>
-            <h1 className="text-2xl font-heading font-bold text-foreground">Couple's Money Planner</h1>
-            <p className="text-sm text-muted-foreground">Joint financial optimisation for dual-income households</p>
+            <h1 className="text-2xl font-heading font-bold text-foreground">Couples FIRE Aggregator</h1>
+            <p className="text-sm text-muted-foreground">Intersect two vastly different portfolio profiles into one shared target date.</p>
           </div>
         </div>
       </motion.div>
 
-      {!started ? (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {["Partner A", "Partner B"].map((partner) => (
-              <div key={partner} className="rounded-xl border border-border bg-card p-5 space-y-4">
-                <h3 className="font-heading font-semibold text-base text-foreground">{partner}</h3>
-                <div>
-                  <label className="text-sm font-medium mb-1.5 block text-foreground">Annual Income</label>
-                  <input
-                    type="text"
-                    defaultValue={partner === "Partner A" ? "18,00,000" : "12,00,000"}
-                    className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-ring outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1.5 block text-foreground">Monthly Rent</label>
-                  <input
-                    type="text"
-                    defaultValue="25,000"
-                    className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-ring outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-1.5 block text-foreground">City</label>
-                  <input
-                    type="text"
-                    defaultValue="Mumbai"
-                    className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-ring outline-none"
-                  />
-                </div>
-                {partner === "Partner A" && (
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" defaultChecked className="accent-gold" />
-                    <span className="text-foreground">Employer offers NPS matching</span>
-                  </label>
-                )}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6">
+        
+        {/* Left column: Parameters */}
+        <div className="lg:col-span-4 space-y-6">
+          {/* Partner A */}
+          <div className="p-6 rounded-2xl bg-violet/5 border border-violet/20 shadow-card">
+            <h3 className="text-sm font-semibold text-violet mb-4 flex items-center gap-2"><HeartPulse className="w-4 h-4"/> Partner A Profile</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Current Corpus (₹)</label>
+                <input type="number" value={partnerA.corpus} onChange={e => setPartnerA({...partnerA, corpus: e.target.value})} className="w-full text-sm rounded-lg border border-input bg-background/50 px-3 py-2 text-foreground focus:ring-1 focus:ring-violet outline-none" />
               </div>
-            ))}
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Monthly SIP (₹)</label>
+                <input type="number" value={partnerA.sip} onChange={e => setPartnerA({...partnerA, sip: e.target.value})} className="w-full text-sm rounded-lg border border-input bg-background/50 px-3 py-2 text-foreground focus:ring-1 focus:ring-violet outline-none" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Expected CAGR (e.g. 0.12)</label>
+                <input type="number" step="0.01" value={partnerA.cagr} onChange={e => setPartnerA({...partnerA, cagr: e.target.value})} className="w-full text-sm rounded-lg border border-input bg-background/50 px-3 py-2 text-foreground focus:ring-1 focus:ring-violet outline-none" />
+              </div>
+            </div>
           </div>
-          <Button variant="hero" onClick={() => setStarted(true)}>
-            Find Joint Optimisations <ArrowRight className="ml-2 w-4 h-4" />
+
+          {/* Partner B */}
+          <div className="p-6 rounded-2xl bg-coral/5 border border-coral/20 shadow-card">
+            <h3 className="text-sm font-semibold text-coral mb-4 flex items-center gap-2"><HeartPulse className="w-4 h-4"/> Partner B Profile</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Current Corpus (₹)</label>
+                <input type="number" value={partnerB.corpus} onChange={e => setPartnerB({...partnerB, corpus: e.target.value})} className="w-full text-sm rounded-lg border border-input bg-background/50 px-3 py-2 text-foreground focus:ring-1 focus:ring-coral outline-none" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Monthly SIP (₹)</label>
+                <input type="number" value={partnerB.sip} onChange={e => setPartnerB({...partnerB, sip: e.target.value})} className="w-full text-sm rounded-lg border border-input bg-background/50 px-3 py-2 text-foreground focus:ring-1 focus:ring-coral outline-none" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Expected CAGR (e.g. 0.10)</label>
+                <input type="number" step="0.01" value={partnerB.cagr} onChange={e => setPartnerB({...partnerB, cagr: e.target.value})} className="w-full text-sm rounded-lg border border-input bg-background/50 px-3 py-2 text-foreground focus:ring-1 focus:ring-coral outline-none" />
+              </div>
+            </div>
+          </div>
+
+          {/* Target */}
+          <div className="p-6 rounded-2xl bg-card border border-border shadow-card">
+            <label className="text-sm font-semibold text-foreground block mb-2">Joint Target Corpus (₹)</label>
+            <div className="relative">
+              <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input type="text" value={target} onChange={e => setTarget(e.target.value)} className="w-full rounded-xl border border-input bg-background pl-9 pr-4 py-3 text-foreground focus:ring-2 focus:ring-pink-500 outline-none font-bold" />
+            </div>
+          </div>
+
+          <Button onClick={handleCalculate} disabled={loading} className="w-full py-6 mt-4 bg-pink-500 hover:bg-pink-600 text-white font-bold text-lg rounded-xl shadow-xl">
+             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Merge Portfolios"}
           </Button>
-        </motion.div>
-      ) : (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-4 space-y-6">
-          <div className="rounded-xl bg-emerald/5 border border-emerald/20 p-5 text-center">
-            <p className="text-sm text-muted-foreground mb-1">Total Annual Savings Found</p>
-            <p className="text-3xl font-heading font-bold text-emerald flex items-center justify-center">
-              <IndianRupee className="w-6 h-6" />{optimisations.reduce((a, o) => a + o.saving, 0).toLocaleString()}
-            </p>
-          </div>
+        </div>
 
-          <div className="space-y-4">
-            {optimisations.map((o, i) => (
-              <div key={i} className="rounded-xl bg-card border border-border p-5 shadow-card">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald" />
-                    <h3 className="font-heading font-semibold text-sm text-foreground">{o.title}</h3>
-                  </div>
-                  <span className="font-heading font-bold text-sm text-emerald flex items-center">
-                    <IndianRupee className="w-3 h-3" />{o.saving.toLocaleString()}/yr
-                  </span>
+        {/* Right column: Results & Stacked Chart */}
+        <div className="lg:col-span-8">
+          {result ? (
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-6 rounded-2xl bg-violet/10 border border-violet/20 flex flex-col justify-center">
+                  <p className="text-xs font-semibold text-violet mb-1 uppercase tracking-wider">{partnerA.name} Share</p>
+                  <p className="text-2xl font-heading font-bold text-foreground">{formatRupee(result.person_a_final)}</p>
                 </div>
-                <p className="text-sm text-muted-foreground">{o.detail}</p>
+                <div className="p-6 rounded-2xl bg-coral/10 border border-coral/20 flex flex-col justify-center">
+                  <p className="text-xs font-semibold text-coral mb-1 uppercase tracking-wider">{partnerB.name} Share</p>
+                  <p className="text-2xl font-heading font-bold text-foreground">{formatRupee(result.person_b_final)}</p>
+                </div>
+                <div className="p-6 rounded-2xl bg-gradient-to-br from-pink-500/20 to-rose-500/10 border border-pink-500/30 flex flex-col justify-center items-center text-center">
+                  <p className="text-xs font-semibold text-pink-500 mb-1 uppercase tracking-wider">Joint FIRE Timeline</p>
+                  <h2 className="text-4xl font-heading font-black text-foreground">{result.years_to_fire} <span className="text-xl">Years</span></h2>
+                </div>
               </div>
-            ))}
-          </div>
 
-          {/* Combined Net Worth */}
-          <div className="rounded-xl bg-card border border-border p-6 shadow-card">
-            <h3 className="font-heading font-semibold text-base mb-4 text-foreground">Combined Net Worth Dashboard</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {[
-                { label: "Mutual Funds", value: "18.5L" },
-                { label: "EPF + PPF", value: "12.2L" },
-                { label: "Fixed Deposits", value: "5.0L" },
-                { label: "Stocks", value: "3.8L" },
-              ].map((item) => (
-                <div key={item.label} className="p-3 rounded-lg bg-muted/50 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
-                  <p className="font-heading font-bold text-sm text-foreground">{item.value}</p>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 p-3 rounded-lg bg-gold/5 border border-gold/20 text-center">
-              <p className="text-xs text-muted-foreground mb-1">Total Household Net Worth</p>
-              <p className="text-2xl font-heading font-bold text-gold">INR 39.5 Lakhs</p>
-            </div>
-          </div>
+              <div className="p-6 rounded-2xl bg-card border border-border shadow-card h-[450px]">
+                <h3 className="text-sm font-heading font-semibold text-foreground mb-4">Joint Stacked Growth Projection</h3>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={result.roadmap} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorA" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
+                      </linearGradient>
+                      <linearGradient id="colorB" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ff7e67" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#ff7e67" stopOpacity={0.1}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="year" stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => `Yr ${v}`} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => `₹${(v/10000000).toFixed(1)}Cr`} width={60} />
+                    <Tooltip 
+                      formatter={(value: number) => formatRupee(value)}
+                      labelFormatter={(label) => `Year ${label}`}
+                      contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
+                    />
+                    <Legend />
+                    <ReferenceLine y={parseFloat(target)} label={{ position: 'top', value: 'Joint Target', fill: '#ec4899', fontSize: 12, fontWeight: 'bold' }} stroke="#ec4899" strokeDasharray="3 3" />
+                    <Area type="monotone" stackId="1" dataKey="person_a_corpus" name={partnerA.name} stroke="#8b5cf6" fillOpacity={1} fill="url(#colorA)" />
+                    <Area type="monotone" stackId="1" dataKey="person_b_corpus" name={partnerB.name} stroke="#ff7e67" fillOpacity={1} fill="url(#colorB)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
 
-          <Button variant="outline" onClick={() => setStarted(false)}>Edit Details</Button>
-        </motion.div>
-      )}
+            </motion.div>
+          ) : (
+             <div className="h-full min-h-[500px] flex flex-col items-center justify-center p-12 text-center border border-dashed border-border rounded-2xl bg-muted/30">
+                <PieChart className="w-12 h-12 text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-heading font-bold text-foreground mb-2">Awaiting Partner Data</h3>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                  Enter both individuals' current balances, SIP capacities, and risk profiles (CAGR). Our engine will compound them entirely separately but visually merge them to hunt down your shared FIRE date natively.
+                </p>
+             </div>
+          )}
+        </div>
+      </div>
     </DashboardLayout>
   );
 };

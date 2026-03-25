@@ -9,13 +9,13 @@ import NotFound from "./pages/NotFound.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import PortfolioXRay from "./pages/PortfolioXRay.tsx";
 import TaxWizard from "./pages/TaxWizard.tsx";
-import FirePlanner from "./pages/FirePlanner.tsx";
+import FireDashboard from "./components/FireDashboard.tsx";
 import HealthScore from "./pages/HealthScore.tsx";
 import LifeEvent from "./pages/LifeEvent.tsx";
 import CouplesPlanner from "./pages/CouplesPlanner.tsx";
 import BadAdvice from "./pages/BadAdvice.tsx";
 import BiasFingerprint from "./pages/BiasFingerprint.tsx";
-import TipAnalyzer from "./pages/TipAnalyzer.tsx";
+import TipAnalyzer from "./components/TipAnalyzer.tsx";
 import ProcrastinationClock from "./pages/ProcrastinationClock.tsx";
 import TheMirror from "./pages/TheMirror.tsx";
 import SalaryTranslator from "./pages/SalaryTranslator.tsx";
@@ -34,7 +34,7 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/portfolio-xray" element={<PortfolioXRay />} />
             <Route path="/tax-wizard" element={<TaxWizard />} />
-            <Route path="/fire-planner" element={<FirePlanner />} />
+            <Route path="/fire-planner" element={<FireDashboard />} />
             <Route path="/health-score" element={<HealthScore />} />
             <Route path="/life-event" element={<LifeEvent />} />
             <Route path="/couples-planner" element={<CouplesPlanner />} />

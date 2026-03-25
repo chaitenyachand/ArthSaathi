@@ -3,10 +3,11 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
-  Search, FileText, Target, Heart, CalendarDays, Users,
-  AlertTriangle, Brain, MessageCircle, Clock, Eye, Wallet, ArrowRight, Sparkles, RotateCcw
+  Search, FileText, Target, Heart, CalendarDays, Users, Flame, LayoutDashboard, Database,
+  AlertTriangle, Brain, MessageCircle, Clock, Eye, Wallet, ArrowRight, Sparkles, PieChart, TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api";
 
 const moduleGroups = [
   {
@@ -14,205 +15,147 @@ const moduleGroups = [
     description: "Build your financial foundation",
     accent: "primary" as const,
     modules: [
-      { icon: Heart, title: "Money Health Score", desc: "5-min quiz across 6 dimensions with a personalised score", path: "/health-score", tag: "Start Here" },
+      { icon: Heart, title: "Money Health Score", desc: "Absolute mathematical calculation of systemic health", path: "/health-score" },
       { icon: Target, title: "FIRE Path Planner", desc: "Month-by-month roadmap to financial freedom", path: "/fire-planner" },
-      { icon: FileText, title: "Tax Wizard", desc: "Old vs new regime with missing deductions", path: "/tax-wizard" },
+      { icon: FileText, title: "Tax Wizard", desc: "Engine detecting highest mathematical tax deduction strategy", path: "/tax-wizard" },
     ],
   },
   {
-    title: "Portfolio & Analysis",
-    description: "Uncover hidden costs in your investments",
-    accent: "primary" as const,
-    modules: [
-      { icon: Search, title: "MF Portfolio X-Ray", desc: "Upload CAMS for true XIRR and overlap analysis", path: "/portfolio-xray" },
-      { icon: AlertTriangle, title: "Cost of Bad Advice", desc: "See what your distributor really earned", path: "/bad-advice" },
-      { icon: MessageCircle, title: "WhatsApp Tip Analyzer", desc: "Grade any forwarded stock tip A-to-F", path: "/tip-analyzer" },
-    ],
-  },
-  {
-    title: "Life & Relationships",
-    description: "Plan finances around life's biggest moments",
+    title: "AI Analysis",
+    description: "Uncover hidden costs and forensic truths",
     accent: "gold" as const,
     modules: [
-      { icon: CalendarDays, title: "Life Event Advisor", desc: "Ranked action plan for major life moments", path: "/life-event" },
-      { icon: Users, title: "Couple's Money Planner", desc: "Joint optimisation for dual-income households", path: "/couples-planner" },
-      { icon: Wallet, title: "Salary-to-Wealth Translator", desc: "Convert any amount to retirement corpus", path: "/salary-translator" },
+      { icon: Search, title: "MF Portfolio X-Ray", desc: "Parse CAMS statements for true XIRR overlap analysis", path: "/portfolio-xray" },
+      { icon: AlertTriangle, title: "Influencer Dissection", desc: "Destroy terrible financial marketing advice via AI", path: "/bad-advice" },
+      { icon: MessageCircle, title: "WhatsApp Tip Analyzer", desc: "Forensic reality mapping grading text tips A-to-F", path: "/tip-analyzer" },
     ],
   },
   {
-    title: "Behavioral Insights",
+    title: "Simulators",
+    description: "Plan finances around variable trajectories",
+    accent: "coral" as const,
+    modules: [
+      { icon: CalendarDays, title: "Life Event Simulator", desc: "Aggressive cash flow shocks against your retirement plan", path: "/life-event" },
+      { icon: Users, title: "Couple's Engine", desc: "Joint optimisation mapping for dual-income households", path: "/couples-planner" },
+      { icon: Wallet, title: "Salary Translator", desc: "Strip Indian tax/EPF dynamically converting Gross to Take-Home", path: "/salary-translator" },
+    ],
+  },
+  {
+    title: "Behavioral Drivers",
     description: "Understand the psychology of your money decisions",
-    accent: "gold" as const,
+    accent: "indigo" as const,
     modules: [
-      { icon: Brain, title: "Bias Fingerprint", desc: "Detect and adapt to your investing biases", path: "/bias-fingerprint" },
-      { icon: Eye, title: "The Mirror", desc: "Stated vs actual investment behaviour", path: "/the-mirror" },
-      { icon: Clock, title: "Procrastination Cost Clock", desc: "Live counter of wealth lost per second", path: "/procrastination-clock" },
+      { icon: Brain, title: "Bias Fingerprint", desc: "Detect and adapt to your psychological investing biases", path: "/bias-fingerprint" },
+      { icon: Flame, title: "The Mirror", desc: "Savage AI Auditor built to aggressively roast bad habits", path: "/the-mirror" },
+      { icon: Clock, title: "Procrastination Clock", desc: "Live mapping of geometric compounding lost due to delays", path: "/procrastination-clock" },
     ],
   },
 ];
 
 const accentStyles = {
-  primary: {
-    icon: "bg-primary/10 border-primary/20 text-primary",
-    hover: "hover:border-primary/40",
-    tag: "bg-primary/15 text-primary",
-    title: "group-hover:text-primary",
-    arrow: "text-primary",
-  },
-  gold: {
-    icon: "bg-gold/10 border-gold/20 text-gold",
-    hover: "hover:border-gold/40",
-    tag: "bg-gold/15 text-gold",
-    title: "group-hover:text-gold",
-    arrow: "text-gold",
-  },
+  primary: { icon: "bg-emerald/10 border-emerald/20 text-emerald", hover: "hover:border-emerald/40", title: "group-hover:text-emerald", arrow: "text-emerald" },
+  gold: { icon: "bg-yellow-500/10 border-yellow-500/20 text-yellow-500", hover: "hover:border-yellow-500/40", title: "group-hover:text-yellow-500", arrow: "text-yellow-500" },
+  coral: { icon: "bg-coral/10 border-coral/20 text-coral", hover: "hover:border-coral/40", title: "group-hover:text-coral", arrow: "text-coral" },
+  indigo: { icon: "bg-indigo-500/10 border-indigo-500/20 text-indigo-500", hover: "hover:border-indigo-500/40", title: "group-hover:text-indigo-500", arrow: "text-indigo-500" },
 };
-
-const STORAGE_KEY = "arthsaathi-health-score";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [healthData, setHealthData] = useState<{ dimensions: { key: string; score: number }[]; timestamp: number } | null>(null);
+  const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try { setHealthData(JSON.parse(saved)); } catch { /* ignore */ }
-    }
+    api.getDashboardSummary().then(res => setData(res)).catch(e => console.error(e));
   }, []);
 
-  const overall = healthData
-    ? Math.round(healthData.dimensions.reduce((a, d) => a + d.score, 0) / healthData.dimensions.length)
-    : null;
+  const formatRupee = (value: number) => {
+    if (value >= 10000000) return `₹${(value / 10000000).toFixed(2)} Cr`;
+    if (value >= 100000) return `₹${(value / 100000).toFixed(2)} L`;
+    return `₹${value.toLocaleString('en-IN')}`;
+  };
 
   return (
     <DashboardLayout>
-      {/* Header */}
-      <div className="mb-10">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-3 mb-3"
-        >
-          <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-2xl lg:text-3xl font-heading font-bold text-foreground">Welcome to ArthSaathi</h1>
-            <p className="text-sm text-muted-foreground">Your AI-powered personal finance mentor</p>
-          </div>
-        </motion.div>
+      <div className="mb-8 flex items-center gap-3">
+        <div className="w-12 h-12 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-500">
+           <LayoutDashboard className="w-6 h-6" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-heading font-black text-foreground">Global Navigation Hub</h1>
+          <p className="text-sm text-muted-foreground flex items-center gap-1">
+             <Database className="w-3 h-3 text-emerald"/> Mock Database Connected. User: <span className="font-bold text-foreground">{data?.user_profile?.name || "Loading..."}</span>
+          </p>
+        </div>
       </div>
 
-      {/* Health Score Card on Dashboard */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.05 }}
-        className="mb-10"
-      >
-        {overall !== null ? (
-          <div className="rounded-xl border border-gold/20 bg-card p-6 shadow-card">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-heading font-semibold text-foreground flex items-center gap-2">
-                <Heart className="w-5 h-5 text-gold" /> Your Money Health
-              </h2>
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground">
-                  Last taken: {new Date(healthData!.timestamp).toLocaleDateString("en-IN")}
-                </span>
-                <Button variant="outline" size="sm" onClick={() => navigate("/health-score")} className="gap-1 text-foreground border-border text-xs">
-                  <RotateCcw className="w-3 h-3" /> Retake
-                </Button>
+      {/* Hero Dashboard Datastate Map */}
+      {data && (
+        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+           
+           <div className="p-6 rounded-3xl bg-blue-500/5 border border-blue-500/20 shadow-md flex flex-col justify-between">
+              <div className="flex items-center gap-2 mb-2">
+                <Heart className="w-4 h-4 text-blue-500" />
+                <p className="text-xs font-semibold text-blue-500 uppercase tracking-wider">Health Rating</p>
               </div>
-            </div>
-            <div className="flex items-center gap-8">
-              <div className="relative w-24 h-24 shrink-0">
-                <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                  <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--muted))" strokeWidth="8" />
-                  <circle cx="50" cy="50" r="42" fill="none" stroke={overall >= 60 ? "hsl(var(--emerald))" : "hsl(var(--coral))"} strokeWidth="8" strokeDasharray={`${overall * 2.64} 264`} strokeLinecap="round" />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-2xl font-heading font-bold text-foreground">{overall}</span>
-                </div>
+              <div>
+                 <h3 className="text-5xl font-heading font-black text-foreground">{data.health_summary.score}<span className="text-xl text-muted-foreground">/100</span></h3>
+                 <p className="text-sm text-muted-foreground mt-2">Overall Grade: <span className="font-bold text-blue-500">{data.health_summary.grade}</span></p>
               </div>
-              <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {healthData!.dimensions.map((d) => (
-                  <div key={d.key} className="text-center">
-                    <p className="text-xs text-muted-foreground mb-1">{d.key}</p>
-                    <p className={`text-lg font-heading font-bold ${d.score < 50 ? "text-coral" : "text-primary"}`}>{d.score}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-            {healthData!.dimensions.some(d => d.score < 50) && (
-              <div className="mt-4 pt-4 border-t border-border">
-                <p className="text-xs text-muted-foreground mb-2">Areas needing attention:</p>
-                <div className="flex flex-wrap gap-2">
-                  {healthData!.dimensions.filter(d => d.score < 50).map(d => (
-                    <span key={d.key} className="text-xs px-2.5 py-1 rounded-full bg-coral/10 text-coral font-medium">{d.key}: {d.score}/100</span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div
-            onClick={() => navigate("/health-score")}
-            className="cursor-pointer rounded-xl border border-dashed border-gold/30 bg-gold/5 p-8 text-center hover:border-gold/50 transition-all"
-          >
-            <Heart className="w-10 h-10 text-gold mx-auto mb-3" />
-            <h3 className="text-lg font-heading font-semibold text-foreground mb-1">Take Your Money Health Quiz</h3>
-            <p className="text-sm text-muted-foreground">Get a personalised score across 6 financial dimensions with actionable suggestions</p>
-          </div>
-        )}
-      </motion.div>
+           </div>
 
-      {/* Module groups */}
+           <div className="p-6 rounded-3xl bg-orange-500/5 border border-orange-500/20 shadow-md flex flex-col justify-between">
+              <div className="flex items-center gap-2 mb-2">
+                <Target className="w-4 h-4 text-orange-500" />
+                <p className="text-xs font-semibold text-orange-500 uppercase tracking-wider">FIRE Liability</p>
+              </div>
+              <div>
+                 <h3 className="text-5xl font-heading font-black text-foreground">{formatRupee(data.fire_summary.required_sip)}</h3>
+                 <p className="text-sm text-muted-foreground mt-2">Required Monthly SIP to reach {formatRupee(data.fire_summary.target_corpus)} target.</p>
+              </div>
+           </div>
+
+           <div className="p-6 rounded-3xl bg-emerald/5 border border-emerald/20 shadow-md flex flex-col justify-between">
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="w-4 h-4 text-emerald" />
+                <p className="text-xs font-semibold text-emerald uppercase tracking-wider">Tax Optimizer</p>
+              </div>
+              <div>
+                 <h3 className="text-5xl font-heading font-black text-foreground">{formatRupee(data.tax_summary.savings_generated)}</h3>
+                 <p className="text-sm text-muted-foreground mt-2">Saved automatically by utilizing the <span className="font-bold text-emerald">{data.tax_summary.regime.replace(/_/g, " ").toUpperCase()}</span>.</p>
+              </div>
+           </div>
+
+        </motion.div>
+      )}
+
+      {/* Application Module Grids */}
       <div className="space-y-12">
         {moduleGroups.map((group, gi) => {
-          const styles = accentStyles[group.accent];
+          const styles = accentStyles[group.accent as keyof typeof accentStyles];
           return (
-            <motion.section
-              key={group.title}
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: gi * 0.1 }}
-            >
+            <motion.section key={group.title} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: gi * 0.1 }}>
               <div className="flex items-baseline gap-3 mb-5">
-                <h2 className="text-lg font-heading font-semibold text-foreground">{group.title}</h2>
-                <span className="text-xs text-muted-foreground hidden sm:inline">{group.description}</span>
+                <h2 className="text-xl font-heading font-semibold text-foreground">{group.title}</h2>
+                <span className="text-xs font-mono text-muted-foreground hidden sm:inline">// {group.description}</span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {group.modules.map((m, i) => {
                   const Icon = m.icon;
                   return (
-                    <motion.div
+                    <div
                       key={m.path}
-                      initial={{ opacity: 0, y: 16 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: gi * 0.1 + i * 0.05 }}
                       onClick={() => navigate(m.path)}
-                      className={cn(
-                        "group cursor-pointer relative rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-card-hover",
-                        styles.hover
-                      )}
+                      className={`group cursor-pointer rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${styles.hover}`}
                     >
-                      {m.tag && (
-                        <span className={cn("absolute top-4 right-4 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full", styles.tag)}>
-                          {m.tag}
-                        </span>
-                      )}
-                      <div className={cn("w-10 h-10 rounded-lg border flex items-center justify-center mb-4", styles.icon)}>
-                        <Icon className="w-4 h-4" />
+                      <div className={`w-12 h-12 rounded-xl border flex items-center justify-center mb-5 ${styles.icon}`}>
+                        <Icon className="w-6 h-6" />
                       </div>
-                      <h3 className={cn("text-sm font-heading font-semibold mb-1 transition-colors text-foreground", styles.title)}>{m.title}</h3>
-                      <p className="text-xs text-muted-foreground leading-relaxed mb-3">{m.desc}</p>
-                      <div className={cn("flex items-center text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity", styles.arrow)}>
-                        Open Module <ArrowRight className="w-3 h-3 ml-1" />
+                      <h3 className={`text-base font-heading font-bold mb-2 transition-colors text-foreground ${styles.title}`}>{m.title}</h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed mb-6 h-10">{m.desc}</p>
+                      <div className={`flex items-center text-sm font-bold opacity-0 group-hover:opacity-100 transition-opacity ${styles.arrow}`}>
+                        Access System <ArrowRight className="w-4 h-4 ml-1" />
                       </div>
-                    </motion.div>
+                    </div>
                   );
                 })}
               </div>
@@ -223,9 +166,5 @@ const Dashboard = () => {
     </DashboardLayout>
   );
 };
-
-function cn(...classes: (string | boolean | undefined)[]) {
-  return classes.filter(Boolean).join(" ");
-}
 
 export default Dashboard;

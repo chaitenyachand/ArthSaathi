@@ -1,290 +1,211 @@
-import { useState, useRef } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
-import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Upload, TrendingUp, PieChart, AlertTriangle, BarChart3, Sparkles, FileText } from "lucide-react";
-import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from "recharts";
+import React, { useState, useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
+import { api, PortfolioRebalanceResponse } from '../lib/api';
 
-const sampleResult = {
-  xirr: 8.4,
-  apparentReturn: 38,
-  benchmark: 12.1,
-  overlap: 73,
-  expenseRatioPaid: 47300,
-  expenseProjected: 180000,
-  funds: [
-    { name: "SBI Bluechip Fund", type: "Regular", er: 1.65, directEr: 0.42, value: 320000, xirr: 7.8 },
-    { name: "Axis Bluechip Fund", type: "Regular", er: 1.48, directEr: 0.38, value: 280000, xirr: 9.2 },
-    { name: "Mirae Large Cap", type: "Direct", er: 0.55, directEr: 0.55, value: 210000, xirr: 11.4 },
-    { name: "HDFC Mid-Cap Opp", type: "Regular", er: 1.72, directEr: 0.65, value: 190000, xirr: 14.1 },
-  ],
-  overlapData: [
-    { subject: "HDFC Bank", A: 18, B: 22, C: 15 },
-    { subject: "Infosys", A: 12, B: 14, C: 10 },
-    { subject: "Reliance", A: 15, B: 16, C: 18 },
-    { subject: "TCS", A: 8, B: 11, C: 9 },
-    { subject: "ICICI Bank", A: 10, B: 8, C: 12 },
-  ],
-};
+const PortfolioXRay: React.FC = () => {
+  const [loadingFile, setLoadingFile] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [transactionsCount, setTransactionsCount] = useState<number | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
 
-const returnComparison = [
-  { label: "Apparent Return", value: 38, color: "hsl(var(--muted-foreground))" },
-  { label: "True XIRR", value: 8.4, color: "hsl(var(--coral))" },
-  { label: "Nifty 50 Benchmark", value: 12.1, color: "hsl(var(--gold))" },
-];
+  const [loadingClaude, setLoadingClaude] = useState(false);
+  const [aiRebalancePlan, setAiRebalancePlan] = useState<PortfolioRebalanceResponse | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
 
-const PortfolioXRay = () => {
-  const [uploaded, setUploaded] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [fileName, setFileName] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Math Metrics state holding mock metrics or real metrics retrieved post-parsing
+  const [metrics, setMetrics] = useState({
+    xirr: 15.2,
+    expense_drag: 1.15,
+    overlap_summary: '73% overlap across 3 large-cap funds detected.'
+  });
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && file.type === "application/pdf") {
-      setFileName(file.name);
-      setAnalyzing(true);
-      setTimeout(() => {
-        setAnalyzing(false);
-        setUploaded(true);
-      }, 2500);
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    if (file && file.type === 'application/pdf') {
+      setUploadedFileName(file.name);
+      setLoadingFile(true);
+      setParseError(null);
+      setTransactionsCount(null);
+      setAiRebalancePlan(null); // Reset AI plan if new file
+
+      try {
+        const response = await api.parseCamsStatement(file);
+        setTransactionsCount(response.total_transactions);
+      } catch (err: any) {
+        setParseError(err.message || 'Failed to parse CAMS statement.');
+      } finally {
+        setLoadingFile(false);
+      }
+    } else {
+      setParseError('Please strict upload a valid CAMS PDF statement.');
+    }
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { 'application/pdf': ['.pdf'] },
+    maxFiles: 1,
+  });
+
+  const triggerClaudeAdvisory = async () => {
+    setLoadingClaude(true);
+    setAiError(null);
+
+    try {
+      const response = await api.generateRebalancePlan({
+        xirr: metrics.xirr,
+        overlap_data: { summary: metrics.overlap_summary },
+        expense_drag: metrics.expense_drag
+      });
+      setAiRebalancePlan(response);
+    } catch (err: any) {
+      setAiError(err.message || 'Failed to communicate with Claude AI Engine.');
+    } finally {
+      setLoadingClaude(false);
     }
   };
 
-  const handleUploadClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleDemoUpload = () => {
-    setFileName("demo_cams_statement.pdf");
-    setAnalyzing(true);
-    setTimeout(() => {
-      setAnalyzing(false);
-      setUploaded(true);
-    }, 2500);
-  };
-
   return (
-    <DashboardLayout>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".pdf,application/pdf"
-        onChange={handleFileSelect}
-        className="hidden"
-      />
+    <div className="w-full max-w-5xl mx-auto p-6 font-sans text-slate-200">
+      <div className="text-center mb-10">
+        <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-pink-500 tracking-tight">
+          Portfolio X-Ray
+        </h1>
+        <p className="mt-5 text-slate-400 text-lg max-w-2xl mx-auto">
+          Upload your CAMS Mutual Fund statement to detect hidden overlaps, evaluate mathematical XIRR constraints, and secure a SEBI-grade AI rebalancing plan.
+        </p>
+      </div>
 
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center">
-            <PieChart className="w-5 h-5 text-gold" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-heading font-bold text-foreground">MF Portfolio X-Ray</h1>
-            <p className="text-sm text-muted-foreground">Upload your CAMS statement for a complete portfolio analysis</p>
-          </div>
-        </div>
-      </motion.div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* Left Dropzone & Metrics Panel */}
+        <div className="lg:col-span-5 bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl relative flex flex-col">
+          <div className="absolute top-0 left-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl -ml-10 -mt-10 pointer-events-none"></div>
 
-      {!uploaded && !analyzing && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mt-8"
-        >
+          <h3 className="text-xl font-bold text-orange-300 mb-4 z-10 relative">System Extraction</h3>
+          
+          {/* React Dropzone */}
           <div
-            onClick={handleUploadClick}
-            className="border-2 border-dashed border-border rounded-2xl p-16 text-center cursor-pointer hover:border-gold/40 hover:bg-gold/5 transition-all duration-300 group"
+            {...getRootProps()}
+            className={`border-2 border-dashed rounded-2xl p-8 mb-6 text-center cursor-pointer transition-all duration-300 z-10 relative ${
+              isDragActive
+                ? 'border-pink-500 bg-pink-500/10'
+                : 'border-white/20 hover:border-pink-400 hover:bg-slate-800/50'
+            }`}
           >
-            <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground group-hover:text-gold transition-colors" />
-            <h3 className="text-lg font-heading font-semibold mb-2 text-foreground">Upload CAMS Statement (PDF)</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Download from camsonline.com — Consolidated Account Statement (PDF)
-            </p>
-            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mb-4">
-              <FileText className="w-4 h-4" />
-              <span>Accepted format: PDF only</span>
-            </div>
-            <Button variant="hero" size="sm" onClick={(e) => { e.stopPropagation(); handleUploadClick(); }}>
-              Select PDF File
-            </Button>
+            <input {...getInputProps()} />
+            <svg className="mx-auto h-12 w-12 text-pink-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            {loadingFile ? (
+              <p className="text-pink-400 font-bold animate-pulse">Running X-Ray Engine...</p>
+            ) : isDragActive ? (
+              <p className="text-pink-300 font-bold">Release to process statement...</p>
+            ) : uploadedFileName ? (
+              <p className="text-orange-400 font-bold">{uploadedFileName}</p>
+            ) : (
+              <p className="text-slate-400 text-sm">Drag & drop your CAMS PDF statement here, or click to upload</p>
+            )}
           </div>
 
-          <div className="mt-6 flex items-center gap-4">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground">or</span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-
-          <div className="mt-6 p-4 rounded-xl bg-muted border border-border flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">
-              Don't have your CAMS statement handy? Try a demo analysis to see what insights you'll get.
-            </p>
-            <Button variant="outline" size="sm" onClick={handleDemoUpload} className="shrink-0 ml-4 text-foreground border-border">
-              Try Demo
-            </Button>
-          </div>
-        </motion.div>
-      )}
-
-      {analyzing && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="mt-16 text-center"
-        >
-          <div className="w-16 h-16 rounded-full border-4 border-gold/20 border-t-gold animate-spin mx-auto mb-6" />
-          <h3 className="text-lg font-heading font-semibold mb-2 text-foreground">Analyzing Your Portfolio</h3>
-          {fileName && <p className="text-sm text-gold mb-2">{fileName}</p>}
-          <p className="text-sm text-muted-foreground">Parsing transactions, computing XIRR, checking overlaps...</p>
-        </motion.div>
-      )}
-
-      {uploaded && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-8 space-y-6">
-          {fileName && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <FileText className="w-4 h-4 text-gold" />
-              Analyzed: <span className="text-gold font-medium">{fileName}</span>
-              <Button variant="ghost" size="sm" className="ml-auto text-foreground" onClick={() => { setUploaded(false); setFileName(null); }}>
-                Upload New
-              </Button>
+          {parseError && (
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl z-10 relative">
+              <p className="text-red-400 font-medium text-sm text-center">{parseError}</p>
             </div>
           )}
 
-          {/* Headline */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-xl bg-card border border-border p-5 shadow-card">
-              <p className="text-xs text-muted-foreground mb-1">Apparent Return</p>
-              <p className="text-3xl font-heading font-bold text-muted-foreground">{sampleResult.apparentReturn}%</p>
-              <p className="text-xs text-muted-foreground mt-1">Misleading absolute return</p>
+          {transactionsCount !== null && (
+            <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between z-10 relative">
+              <span className="text-emerald-400 font-bold">Transactions Extracted:</span>
+              <span className="text-2xl font-black text-white">{transactionsCount.toLocaleString('en-IN')}</span>
             </div>
-            <div className="rounded-xl bg-card border border-coral/30 p-5 shadow-card">
-              <p className="text-xs text-muted-foreground mb-1">True XIRR (Annualised)</p>
-              <p className="text-3xl font-heading font-bold text-coral">{sampleResult.xirr}%</p>
-              <p className="text-xs text-coral mt-1">Your real return is much lower</p>
-            </div>
-            <div className="rounded-xl bg-card border border-gold/30 p-5 shadow-card">
-              <p className="text-xs text-muted-foreground mb-1">Nifty 50 Benchmark</p>
-              <p className="text-3xl font-heading font-bold text-gold">{sampleResult.benchmark}%</p>
-              <p className="text-xs text-gold mt-1">You underperformed the index</p>
-            </div>
-          </div>
+          )}
 
-          {/* Return comparison chart */}
-          <div className="rounded-xl bg-card border border-border p-6 shadow-card">
-            <h3 className="text-base font-heading font-semibold mb-4 flex items-center gap-2 text-foreground">
-              <BarChart3 className="w-4 h-4 text-gold" /> Return Comparison
-            </h3>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={returnComparison} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis type="number" domain={[0, 40]} tick={{ fill: 'hsl(var(--foreground))', fontSize: 12 }} />
-                <YAxis type="category" dataKey="label" width={130} tick={{ fill: 'hsl(var(--foreground))', fontSize: 12 }} />
-                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }} labelStyle={{ color: 'hsl(var(--foreground))' }} itemStyle={{ color: 'hsl(var(--foreground))' }} />
-                <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={24}>
-                  {returnComparison.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="flex-grow"></div>
+          
+          {/* Post-Upload Extracted Metrics */}
+          <div className="bg-black/30 border border-white/5 rounded-2xl p-5 z-10 relative">
+             <h4 className="text-xs uppercase font-extrabold text-slate-500 tracking-wider mb-4">Under-the-hood Metrics</h4>
+             
+             <div className="flex justify-between items-center mb-3">
+               <span className="text-sm font-medium text-slate-400">Projected Portfolio XIRR</span>
+               <span className="font-bold text-emerald-400">{metrics.xirr}%</span>
+             </div>
+             
+             <div className="flex justify-between items-center mb-3">
+               <span className="text-sm font-medium text-slate-400">Expense Ratio Drag</span>
+               <span className="font-bold text-red-400">{metrics.expense_drag}%</span>
+             </div>
+             
+             <div className="mt-4 pt-4 border-t border-white/5">
+                <span className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Detected Collision</span>
+                <p className="text-sm text-orange-200">{metrics.overlap_summary}</p>
+             </div>
           </div>
+        </div>
 
-          {/* Overlap */}
-          <div className="rounded-xl bg-card border border-border p-6 shadow-card">
-            <h3 className="text-base font-heading font-semibold mb-2 flex items-center gap-2 text-foreground">
-              <AlertTriangle className="w-4 h-4 text-coral" /> Portfolio Overlap: {sampleResult.overlap}%
-            </h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Your portfolio has {sampleResult.overlap}% overlap across 3 large-cap funds. You are paying for three funds but effectively owning one.
-            </p>
-            <ResponsiveContainer width="100%" height={250}>
-              <RadarChart data={sampleResult.overlapData}>
-                <PolarGrid stroke="hsl(var(--border))" />
-                <PolarAngleAxis dataKey="subject" tick={{ fill: 'hsl(var(--foreground))', fontSize: 11 }} />
-                <PolarRadiusAxis tick={false} axisLine={false} />
-                <Radar name="SBI Bluechip" dataKey="A" stroke="hsl(var(--gold))" fill="hsl(var(--gold))" fillOpacity={0.2} />
-                <Radar name="Axis Bluechip" dataKey="B" stroke="hsl(var(--emerald))" fill="hsl(var(--emerald))" fillOpacity={0.2} />
-                <Radar name="Mirae Large Cap" dataKey="C" stroke="hsl(var(--violet))" fill="hsl(var(--violet))" fillOpacity={0.2} />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
+        {/* Right Output: Claude AI Advisory */}
+        <div className="lg:col-span-7 flex flex-col space-y-6">
+          
+          <div className="bg-gradient-to-br from-indigo-900/60 to-purple-900/30 border border-indigo-500/30 backdrop-blur-xl rounded-3xl p-8 shadow-2xl flex-grow flex flex-col items-center justify-center relative overflow-hidden">
+             
+            {!aiRebalancePlan && !loadingClaude ? (
+              <div className="text-center z-10">
+                <svg className="w-16 h-16 text-indigo-400/50 mx-auto mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                <h3 className="text-2xl font-extrabold text-indigo-300 mb-3">Claude AI Rebalancing Brain</h3>
+                <p className="text-slate-400 max-w-sm mx-auto mb-8">
+                  Merge the calculated metrics into our Anthropic engine to generate a SEBI-level, plain-English structural pivot plan.
+                </p>
+                <button
+                  onClick={triggerClaudeAdvisory}
+                  disabled={loadingFile}
+                  className="px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 border border-indigo-400 text-white rounded-xl font-bold tracking-wide transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:-translate-y-1"
+                >
+                  Generate Financial Action Plan
+                </button>
+              </div>
+            ) : loadingClaude ? (
+               <div className="text-center z-10 flex flex-col items-center">
+                 <svg className="animate-spin h-12 w-12 text-indigo-400 mb-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                 </svg>
+                 <h3 className="text-xl font-bold text-indigo-300 animate-pulse">Claude is crunching the metrics...</h3>
+               </div>
+            ) : aiRebalancePlan ? (
+               <div className="w-full text-left z-10 animate-fade-in-up">
+                 <div className="flex items-center space-x-3 mb-6 border-b border-indigo-500/20 pb-4">
+                   <svg className="w-8 h-8 text-indigo-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"></path></svg>
+                   <h3 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-purple-400">
+                     Strategic Rebalancing Protocol
+                   </h3>
+                 </div>
+                 
+                 <div className="prose prose-invert max-w-none text-slate-300 leading-relaxed font-medium">
+                   {/* Split the plain text into paragraphs for cleaner rendering */}
+                   {aiRebalancePlan.rebalancing_plan_text.split('\n\n').map((paragraph, idx) => (
+                      <p key={idx} className="mb-4">{paragraph}</p>
+                   ))}
+                 </div>
+                 
+                 <div className="mt-8 pt-6 border-t border-white/5 flex justify-end">
+                    <button onClick={() => setAiRebalancePlan(null)} className="text-sm text-indigo-400 hover:text-white transition-colors">
+                      Restart Analysis Session
+                    </button>
+                 </div>
+               </div>
+            ) : null}
 
-          {/* Fund holdings table */}
-          <div className="rounded-xl bg-card border border-border p-6 shadow-card overflow-x-auto">
-            <h3 className="text-base font-heading font-semibold mb-4 flex items-center gap-2 text-foreground">
-              <TrendingUp className="w-4 h-4 text-primary" /> Fund-wise Analysis
-            </h3>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-3 px-2 font-medium text-muted-foreground">Fund Name</th>
-                  <th className="text-center py-3 px-2 font-medium text-muted-foreground">Type</th>
-                  <th className="text-right py-3 px-2 font-medium text-muted-foreground">Expense Ratio</th>
-                  <th className="text-right py-3 px-2 font-medium text-muted-foreground">Direct ER</th>
-                  <th className="text-right py-3 px-2 font-medium text-muted-foreground">Value</th>
-                  <th className="text-right py-3 px-2 font-medium text-muted-foreground">XIRR</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sampleResult.funds.map((f, i) => (
-                  <tr key={i} className="border-b border-border/50">
-                    <td className="py-3 px-2 font-medium text-foreground">{f.name}</td>
-                    <td className="text-center py-3 px-2">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        f.type === "Regular" ? "bg-coral/10 text-coral" : "bg-primary/10 text-primary"
-                      }`}>{f.type}</span>
-                    </td>
-                    <td className="text-right py-3 px-2 text-foreground">{f.er}%</td>
-                    <td className="text-right py-3 px-2 text-primary">{f.directEr}%</td>
-                    <td className="text-right py-3 px-2 font-mono text-foreground">{f.value.toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}</td>
-                    <td className="text-right py-3 px-2 font-mono text-foreground">{f.xirr}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {aiError && (
+              <div className="absolute bottom-6 w-full px-8">
+                <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-center">
+                  <p className="text-red-400 font-bold text-sm tracking-wide">{aiError}</p>
+                </div>
+              </div>
+            )}
+            
           </div>
-
-          {/* Expense ratio */}
-          <div className="rounded-xl bg-card border border-border p-6 shadow-card">
-            <h3 className="text-base font-heading font-semibold mb-4 text-foreground">Expense Ratio Drag</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 rounded-lg bg-coral/5 border border-coral/20">
-                <p className="text-xs text-muted-foreground mb-1">Paid in Last 5 Years</p>
-                <p className="text-2xl font-heading font-bold text-coral">{sampleResult.expenseRatioPaid.toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}</p>
-              </div>
-              <div className="p-4 rounded-lg bg-coral/5 border border-coral/20">
-                <p className="text-xs text-muted-foreground mb-1">Projected 20-Year Cost</p>
-                <p className="text-2xl font-heading font-bold text-coral">{sampleResult.expenseProjected.toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* AI Rebalancing */}
-          <div className="rounded-xl bg-card border border-gold/20 p-6 shadow-card">
-            <h3 className="text-base font-heading font-semibold mb-4 flex items-center gap-2 text-foreground">
-              <Sparkles className="w-4 h-4 text-gold" /> AI Rebalancing Plan
-            </h3>
-            <div className="space-y-3 text-sm">
-              <div className="flex gap-3">
-                <span className="w-6 h-6 rounded-full bg-gold/10 text-gold flex items-center justify-center text-xs font-bold shrink-0">1</span>
-                <p className="text-foreground"><strong>Merge large-cap funds:</strong> SBI Bluechip and Axis Bluechip have 73% overlap. Switch both to a single Nifty 50 index fund (UTI Nifty 50 Direct — 0.1% ER). This eliminates overlap and saves 1.2% in annual fees.</p>
-              </div>
-              <div className="flex gap-3">
-                <span className="w-6 h-6 rounded-full bg-gold/10 text-gold flex items-center justify-center text-xs font-bold shrink-0">2</span>
-                <p className="text-foreground"><strong>Switch Regular to Direct:</strong> HDFC Mid-Cap Opportunities is in Regular plan. Switch to Direct to save 1.07% annually. Wait until April to avoid STCG on recent purchases.</p>
-              </div>
-              <div className="flex gap-3">
-                <span className="w-6 h-6 rounded-full bg-gold/10 text-gold flex items-center justify-center text-xs font-bold shrink-0">3</span>
-                <p className="text-foreground"><strong>Add debt allocation:</strong> Portfolio is 100% equity. Add 20-30% in a short-duration debt fund or liquid fund for stability and rebalancing opportunities during corrections.</p>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      )}
-    </DashboardLayout>
+        </div>
+      </div>
+    </div>
   );
 };
 

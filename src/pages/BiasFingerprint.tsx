@@ -3,7 +3,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { motion } from "framer-motion";
 import { Brain, ArrowRight, Loader2 } from "lucide-react";
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from "recharts";
-import { apiPost } from "@/lib/api";
+import { api } from "@/lib/api";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 interface BiasScore {
@@ -80,9 +80,7 @@ const BiasFingerprint = () => {
       // Last answer — submit to backend
       setStep(1);
       try {
-        const result = await apiPost<BiasResultData>("/api/bias", {
-          answers: newAnswers,
-        });
+        const result = await api.analyzeBias({ answers: newAnswers });
         setBiasResult(result);
       } catch {
         // Backend not ready — use demo
