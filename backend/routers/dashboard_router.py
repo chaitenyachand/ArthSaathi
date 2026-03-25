@@ -1,5 +1,6 @@
 from fastapi import APIRouter
-from models.feature_models import TaxInputRequest, HealthScoreRequest
+from models.pdf_models import TaxInputRequest
+from models.feature_models import HealthScoreRequest
 from services.tax_calc import TaxCalc
 from services.fire_calc import FIRECalc
 from services.scoring_engine import ScoringEngine
