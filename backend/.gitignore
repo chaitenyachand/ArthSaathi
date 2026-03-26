@@ -1,0 +1,11 @@
+# Environments
+.env
+
+# Dependencies
+venv/
+__pycache__/
+*.pyc
+
+# Local files
+*.sqlite3
+.pytest_cache/
